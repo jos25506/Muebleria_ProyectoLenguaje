@@ -1,3 +1,4 @@
+
 <?php
 require_once __DIR__ . '/../../Conexion/conexion.php';
 include __DIR__ . '/../../includes/header.php';
@@ -10,12 +11,15 @@ if (!$conn) {
 }
 
 /* BUSCADOR */
+
 $buscar = "";
+
 if(isset($_GET['buscar'])){
     $buscar = $_GET['buscar'];
 }
 
 /* CONSULTA */
+
 $query = "SELECT 
             pe.ID_PEDIDO,
             pe.FECHA,
@@ -36,100 +40,166 @@ $query = "SELECT
           ORDER BY pe.ID_PEDIDO DESC";
 
 $stmt = oci_parse($conn, $query);
+
 $buscarParam = "%".$buscar."%";
+
 oci_bind_by_name($stmt, ":buscar", $buscarParam);
+
 oci_execute($stmt);
+
 ?>
 
 <h1>Pedidos</h1>
 
 <a href="nuevo.php" class="btn btn-primary mb-3">
-    Nuevo Pedido
+Nuevo Pedido
 </a>
 
 <!-- BUSCADOR -->
+
 <form method="GET" class="mb-3">
-    <div class="input-group">
-        <input type="text" name="buscar" class="form-control" placeholder="Buscar por cliente o ID de pedido" value="<?php echo htmlspecialchars($buscar); ?>">
-        <button class="btn btn-dark">Buscar</button>
-    </div>
+
+<div class="input-group">
+
+<input type="text"
+name="buscar"
+class="form-control"
+placeholder="Buscar por cliente o ID de pedido"
+value="<?php echo htmlspecialchars($buscar); ?>">
+
+<button class="btn btn-dark">
+Buscar
+</button>
+
+</div>
+
 </form>
 
 <div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead class="table-dark">
-            <tr>
-                <th>ID</th>
-                <th>Fecha</th>
-                <th>Cliente</th>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Total</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php while ($row = oci_fetch_assoc($stmt)): ?>
-                <tr>
-                    <td><?php echo $row['ID_PEDIDO']; ?></td>
-                    <td><?php echo $row['FECHA']; ?></td>
-                    <td><?php echo htmlspecialchars($row['CLIENTE']); ?></td>
-                    <td><?php echo htmlspecialchars($row['PRODUCTO']); ?></td>
-                    <td><?php echo $row['CANTIDAD']; ?></td>
-                    <td>₡<?php echo number_format($row['TOTAL'], 2); ?></td>
-                    <td>
-                        <?php
-                        switch($row['ESTADO']){
-                            case "PENDIENTE": echo "<span class='badge bg-warning text-dark'>PENDIENTE</span>"; break;
-                            case "ENVIADO": echo "<span class='badge bg-primary'>ENVIADO</span>"; break;
-                            case "ENTREGADO": echo "<span class='badge bg-success'>ENTREGADO</span>"; break;
-                            case "CANCELADO": echo "<span class='badge bg-danger'>CANCELADO</span>"; break;
-                        }
-                        ?>
-                    </td>
-                    <td>
-                        <!-- Botón Ver Detalle Agregado -->
-                        <a href="detalle.php?id=<?php echo $row['ID_PEDIDO']; ?>" 
-                           class="btn btn-info btn-sm" 
-                           title="Ver detalle">
-                            <i class="fas fa-eye"></i> Ver
-                        </a>
 
-                        <a href="editar.php?id=<?php echo $row['ID_PEDIDO']; ?>" 
-                           class="btn btn-warning btn-sm" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </a>
+<table class="table table-striped table-hover">
 
-                        <a href="javascript:void(0);" 
-                           onclick="confirmarEliminacion(<?php echo $row['ID_PEDIDO']; ?>)" 
-                           class="btn btn-danger btn-sm" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                    </td>
-                </tr>
-            <?php endwhile; ?>
-        </tbody>
-    </table>
+<thead class="table-dark">
+
+<tr>
+
+<th>ID</th>
+<th>Fecha</th>
+<th>Cliente</th>
+<th>Producto</th>
+<th>Cantidad</th>
+<th>Total</th>
+<th>Estado</th>
+<th>Acciones</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<?php while ($row = oci_fetch_assoc($stmt)): ?>
+
+<tr>
+
+<td><?php echo $row['ID_PEDIDO']; ?></td>
+
+<td><?php echo $row['FECHA']; ?></td>
+
+<td><?php echo htmlspecialchars($row['CLIENTE']); ?></td>
+
+<td><?php echo htmlspecialchars($row['PRODUCTO']); ?></td>
+
+<td><?php echo $row['CANTIDAD']; ?></td>
+
+<td>
+₡<?php echo number_format($row['TOTAL'],2); ?>
+</td>
+
+
+<td>
+
+<?php
+
+switch($row['ESTADO']){
+
+case "PENDIENTE":
+echo "<span class='badge bg-warning text-dark'>PENDIENTE</span>";
+break;
+
+case "ENVIADO":
+echo "<span class='badge bg-primary'>ENVIADO</span>";
+break;
+
+case "ENTREGADO":
+echo "<span class='badge bg-success'>ENTREGADO</span>";
+break;
+
+case "CANCELADO":
+echo "<span class='badge bg-danger'>CANCELADO</span>";
+break;
+
+}
+
+?>
+
+</td>
+
+
+
+<td>
+
+<a href="editar.php?id=<?php echo $row['ID_PEDIDO']; ?>" 
+class="btn btn-warning btn-sm" title="Editar">
+
+<i class="fas fa-edit"></i>
+
+</a>
+
+<a href="javascript:void(0);" 
+onclick="confirmarEliminacion(<?php echo $row['ID_PEDIDO']; ?>)" 
+class="btn btn-danger btn-sm" title="Eliminar">
+
+<i class="fas fa-trash"></i>
+
+</a>
+
+</td>
+
+</tr>
+
+<?php endwhile; ?>
+
+</tbody>
+
+</table>
+
 </div>
 
 <script>
+
 function confirmarEliminacion(id){
-    Swal.fire({
-        title:'¿Eliminar pedido?',
-        text:'Esta acción no se puede deshacer',
-        icon:'warning',
-        showCancelButton:true,
-        confirmButtonColor:'#e74c3c',
-        cancelButtonColor:'#2c3e50',
-        confirmButtonText:'Sí eliminar',
-        cancelButtonText:'Cancelar'
-    }).then((result)=>{
-        if(result.isConfirmed){
-            window.location.href=`eliminar.php?id=${id}&confirm=1`;
-        }
-    });
+
+Swal.fire({
+title:'¿Eliminar pedido?',
+text:'Esta acción no se puede deshacer',
+icon:'warning',
+showCancelButton:true,
+confirmButtonColor:'#e74c3c',
+cancelButtonColor:'#2c3e50',
+confirmButtonText:'Sí eliminar',
+cancelButtonText:'Cancelar'
+
+}).then((result)=>{
+
+if(result.isConfirmed){
+window.location.href=`eliminar.php?id=${id}&confirm=1`;
 }
+
+});
+
+}
+
 </script>
 
 <?php
@@ -137,5 +207,4 @@ oci_free_statement($stmt);
 $db->close();
 include __DIR__ . '/../../includes/footer.php';
 ?>
-
 
