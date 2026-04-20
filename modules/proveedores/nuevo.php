@@ -12,13 +12,13 @@ if (!isset($_SESSION['usuario_id'])) {
 $db = new Database();
 $conn = $db->getConnection();
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nombre = $_POST['nombre'];
     $telefono = $_POST['telefono'];
     $correo = $_POST['correo'];
     $direccion = $_POST['direccion'];
     
-    // Validaciones básicas
+    // Validaciones
     $errores = [];
     
     if (empty($nombre)) $errores[] = "El nombre es requerido";
@@ -32,34 +32,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if (empty($errores)) {
         // Obtener el siguiente ID
-        $query_id = "SELECT NVL(MAX(ID_CLIENTE), 0) + 1 as next_id FROM MUEBLERIA.CLIENTE";
+        $query_id = "SELECT NVL(MAX(ID_PROVEEDOR), 0) + 1 as next_id FROM MUEBLERIA.PROVEEDOR";
         $stmt_id = oci_parse($conn, $query_id);
         oci_execute($stmt_id);
         $row_id = oci_fetch_assoc($stmt_id);
         $nuevo_id = $row_id['NEXT_ID'];
         
-        // Insertar cliente
-        $query = "INSERT INTO MUEBLERIA.CLIENTE (ID_CLIENTE, NOMBRE, TELEFONO, CORREO, DIRECCION) 
-                  VALUES (:id, :nombre, :telefono, :correo, :direccion)";
+        $sql = "INSERT INTO MUEBLERIA.PROVEEDOR (ID_PROVEEDOR, NOMBRE, TELEFONO, CORREO, DIRECCION)
+                VALUES (:id, :nombre, :telefono, :correo, :direccion)";
         
-        $stmt = oci_parse($conn, $query);
-        oci_bind_by_name($stmt, ':id', $nuevo_id);
-        oci_bind_by_name($stmt, ':nombre', $nombre);
-        oci_bind_by_name($stmt, ':telefono', $telefono);
-        oci_bind_by_name($stmt, ':correo', $correo);
-        oci_bind_by_name($stmt, ':direccion', $direccion);
+        $stmt = oci_parse($conn, $sql);
+        
+        oci_bind_by_name($stmt, ":id", $nuevo_id);
+        oci_bind_by_name($stmt, ":nombre", $nombre);
+        oci_bind_by_name($stmt, ":telefono", $telefono);
+        oci_bind_by_name($stmt, ":correo", $correo);
+        oci_bind_by_name($stmt, ":direccion", $direccion);
         
         if (oci_execute($stmt)) {
+            oci_commit($conn);
             echo "<script>
                 Swal.fire({
                     icon: 'success',
-                    title: '¡Cliente guardado!',
-                    text: 'El cliente \"$nombre\" ha sido creado exitosamente',
+                    title: '¡Proveedor guardado!',
+                    text: 'El proveedor \"$nombre\" ha sido creado exitosamente',
                     confirmButtonColor: '#2c3e50',
-                    confirmButtonText: 'Ver clientes'
-                }).then((result) => {
-                    window.location.href = 'clientes.php';
-                });
+                    confirmButtonText: 'Ver proveedores'
+                }).then(() => window.location.href = 'proveedores.php');
             </script>";
         } else {
             $error = oci_error($stmt);
@@ -73,7 +72,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </script>";
         }
     } else {
-        // Mostrar errores de validación
         $mensaje_error = implode("\\n", $errores);
         echo "<script>
             Swal.fire({
@@ -111,80 +109,82 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-user-plus"></i> Nuevo Cliente
+        <i class="fas fa-truck"></i> Nuevo Proveedor
     </div>
     <div class="card-body">
         <form method="POST" onsubmit="return validarFormulario(event)">
-            <div class="row">
-                <!-- Campo NOMBRE - solo letras -->
-                <div class="col-md-6 mb-3">
-                    <label for="nombre" class="form-label">
-                        <i class="fas fa-user"></i> Nombre completo *
-                        
-                    </label>
-                    <input type="text" class="form-control" id="nombre" name="nombre" required 
-                           placeholder="Ingrese el nombre completo"
-                           onkeyup="validarNombre()"
-                           onblur="validarNombre()">
-                    <div id="error-nombre" class="error-message">
-                        <i class="fas fa-times-circle"></i> El nombre solo debe contener letras y espacios
-                    </div>
-                </div>
-                
-                <!-- Campo TELÉFONO - solo números, 8 dígitos -->
-                <div class="col-md-6 mb-3">
-                    <label for="telefono" class="form-label">
-                        <i class="fas fa-phone"></i> Teléfono *
-                        
-                    </label>
-                    <input type="text" class="form-control" id="telefono" name="telefono" required 
-                           placeholder="Ej: 70020001"
-                           onkeyup="validarTelefono()"
-                           onblur="validarTelefono()"
-                           maxlength="8">
-                    <div id="error-telefono" class="error-message">
-                        <i class="fas fa-times-circle"></i> El teléfono debe tener exactamente 8 dígitos numéricos
-                    </div>
-                </div>
-                
-                <!-- Campo CORREO - formato email -->
-                <div class="col-md-6 mb-3">
-                    <label for="correo" class="form-label">
-                        <i class="fas fa-envelope"></i> Correo electrónico *
-                        
-                    </label>
-                    <input type="email" class="form-control" id="correo" name="correo" required 
-                           placeholder="cliente@email.com"
-                           onkeyup="validarCorreo()"
-                           onblur="validarCorreo()">
-                    <div id="error-correo" class="error-message">
-                        <i class="fas fa-times-circle"></i> Ingrese un correo electrónico válido (ejemplo@dominio.com)
-                    </div>
-                </div>
-                
-                <!-- Campo DIRECCIÓN - letras, números, espacios, #, - -->
-                <div class="col-md-6 mb-3">
-                    <label for="direccion" class="form-label">
-                        <i class="fas fa-map-marker-alt"></i> Dirección *
-                        
-                    </label>
-                    <input type="text" class="form-control" id="direccion" name="direccion" required 
-                           placeholder="Ej: San José, Calle 5, Casa #10"
-                           onkeyup="validarDireccion()"
-                           onblur="validarDireccion()">
-                    <div id="error-direccion" class="error-message">
-                        <i class="fas fa-times-circle"></i> La dirección contiene caracteres no válidos
-                    </div>
+            <!-- Campo NOMBRE - solo letras -->
+            <div class="mb-3">
+                <label for="nombre" class="form-label">
+                    <i class="fas fa-building"></i> Nombre *
+                    
+                </label>
+                <input type="text" name="nombre" id="nombre" class="form-control" 
+                       placeholder="Ej: Maderas del Norte"
+                       onkeyup="validarNombre()"
+                       onblur="validarNombre()"
+                       required>
+                <div id="error-nombre" class="error-message">
+                    <i class="fas fa-times-circle"></i> El nombre solo debe contener letras y espacios
                 </div>
             </div>
-            
+
+            <!-- Campo TELÉFONO - solo números, 8 dígitos -->
+            <div class="mb-3">
+                <label for="telefono" class="form-label">
+                    <i class="fas fa-phone"></i> Teléfono *
+                    <small class="text-muted">(8 dígitos, solo números)</small>
+                </label>
+                <input type="text" name="telefono" id="telefono" class="form-control" 
+                       placeholder="Ej: 60010001"
+                       onkeyup="validarTelefono()"
+                       onblur="validarTelefono()"
+                       maxlength="8"
+                       required>
+                <div id="error-telefono" class="error-message">
+                    <i class="fas fa-times-circle"></i> El teléfono debe tener exactamente 8 dígitos numéricos
+                </div>
+            </div>
+
+            <!-- Campo CORREO - formato email -->
+            <div class="mb-3">
+                <label for="correo" class="form-label">
+                    <i class="fas fa-envelope"></i> Correo electrónico *
+                    <small class="text-muted">(ejemplo@dominio.com)</small>
+                </label>
+                <input type="email" name="correo" id="correo" class="form-control" 
+                       placeholder="proveedor@empresa.com"
+                       onkeyup="validarCorreo()"
+                       onblur="validarCorreo()"
+                       required>
+                <div id="error-correo" class="error-message">
+                    <i class="fas fa-times-circle"></i> Ingrese un correo electrónico válido (ejemplo@dominio.com)
+                </div>
+            </div>
+
+            <!-- Campo DIRECCIÓN - letras, números, espacios, #, - -->
+            <div class="mb-3">
+                <label for="direccion" class="form-label">
+                    <i class="fas fa-map-marker-alt"></i> Dirección *
+                    
+                </label>
+                <input type="text" name="direccion" id="direccion" class="form-control" 
+                       placeholder="Ej: San José, Zona Industrial"
+                       onkeyup="validarDireccion()"
+                       onblur="validarDireccion()"
+                       required>
+                <div id="error-direccion" class="error-message">
+                    <i class="fas fa-times-circle"></i> La dirección contiene caracteres no válidos
+                </div>
+            </div>
+
             <hr>
-            
+
             <div class="text-center">
                 <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="fas fa-save"></i> Guardar Cliente
+                    <i class="fas fa-save"></i> Guardar Proveedor
                 </button>
-                <a href="clientes.php" class="btn btn-secondary btn-lg">
+                <a href="proveedores.php" class="btn btn-secondary btn-lg">
                     <i class="fas fa-times"></i> Cancelar
                 </a>
             </div>
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <script>
 // ============================================
-// VALIDACIONES EN TIEMPO REAL PARA CLIENTES
+// VALIDACIONES EN TIEMPO REAL PARA PROVEEDORES
 // ============================================
 
 // 1. Validar NOMBRE (solo letras y espacios)
@@ -316,7 +316,7 @@ function validarFormulario(event) {
     var direccion = document.getElementById('direccion').value.trim();
     
     if (nombre === '') {
-        Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Por favor ingrese el nombre del cliente', confirmButtonColor: '#2c3e50' });
+        Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Por favor ingrese el nombre del proveedor', confirmButtonColor: '#2c3e50' });
         return false;
     }
     
