@@ -82,44 +82,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt = oci_parse($conn, $query);
         oci_bind_by_name($stmt, ':id', $nuevo_id);
         oci_bind_by_name($stmt, ':fecha', $fecha);
-        
-        // Convertir el total a formato Oracle (coma decimal)
-        $total_oracle = str_replace('.', ',', $total);
-        oci_bind_by_name($stmt, ':total', $total_oracle);
-        
+        oci_bind_by_name($stmt, ':total', $total);
         oci_bind_by_name($stmt, ':id_proveedor', $id_proveedor);
         oci_bind_by_name($stmt, ':usuario', $_SESSION['usuario_id']);
         
-        if (oci_execute($stmt)) {
-            // Insertar detalles
+        try {
+            // INSERTAR COMPRA
+            if (!@oci_execute($stmt)) {
+                $e = oci_error($stmt);
+                throw new Exception($e['message']);
+            }
+
+            // INSERTAR DETALLES
+            $productos = $_POST['productos'];
+            $cantidades = $_POST['cantidades'];
+            $costos = $_POST['costos'];
+
             for ($i = 0; $i < count($productos); $i++) {
                 if ($productos[$i] != '') {
                     $subtotal = $cantidades[$i] * $costos[$i];
-                    
+
                     $query_det = "INSERT INTO MUEBLERIA.DETALLE_COMPRA 
-                                  (ID_DETALLE_COMPRA, ID_COMPRA, ID_PRODUCTO, CANTIDAD, COSTO_UNITARIO, SUB_TOTAL) 
-                                  VALUES 
-                                  ((SELECT NVL(MAX(ID_DETALLE_COMPRA), 0) + 1 FROM MUEBLERIA.DETALLE_COMPRA), 
-                                   :id_compra, :id_producto, :cantidad, :costo, :subtotal)";
-                    
+                        (ID_DETALLE_COMPRA, ID_COMPRA, ID_PRODUCTO, CANTIDAD, COSTO_UNITARIO, SUB_TOTAL) 
+                        VALUES 
+                        ((SELECT NVL(MAX(ID_DETALLE_COMPRA), 0) + 1 FROM MUEBLERIA.DETALLE_COMPRA), 
+                         :id_compra, :id_producto, :cantidad, :costo, :subtotal)";
+
                     $stmt_det = oci_parse($conn, $query_det);
+
                     oci_bind_by_name($stmt_det, ':id_compra', $nuevo_id);
                     oci_bind_by_name($stmt_det, ':id_producto', $productos[$i]);
                     oci_bind_by_name($stmt_det, ':cantidad', $cantidades[$i]);
-                    
-                    // Convertir costo y subtotal a formato Oracle (coma decimal)
-                    $costo_oracle = str_replace('.', ',', $costos[$i]);
-                    $subtotal_oracle = str_replace('.', ',', $subtotal);
-                    
-                    oci_bind_by_name($stmt_det, ':costo', $costo_oracle);
-                    oci_bind_by_name($stmt_det, ':subtotal', $subtotal_oracle);
-                    
-                    oci_execute($stmt_det);
+                    oci_bind_by_name($stmt_det, ':costo', $costos[$i]);
+                    oci_bind_by_name($stmt_det, ':subtotal', $subtotal);
+
+                    if (!oci_execute($stmt_det)) {
+                        $e = oci_error($stmt_det);
+                        throw new Exception($e['message']);
+                    }
                 }
             }
             
             oci_commit($conn);
-            
+
             echo "<script>
                 Swal.fire({
                     icon: 'success',
@@ -128,13 +133,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     confirmButtonColor: '#2c3e50'
                 }).then(() => window.location.href = 'compras.php');
             </script>";
-        } else {
-            $error = oci_error($stmt);
+
+        } catch (Exception $e) {
+            $error = $e->getMessage();
+
+            // TRADUCIR ERRORES DE TRIGGERS
+            if (strpos($error, 'ORA-20201') !== false) {
+                $msg = "El total debe ser mayor a 0";
+            } elseif (strpos($error, 'ORA-20202') !== false) {
+                $msg = "La fecha no puede ser futura";
+            } elseif (strpos($error, 'ORA-20203') !== false) {
+                $msg = "Cantidad inválida en un producto";
+            } elseif (strpos($error, 'ORA-20204') !== false) {
+                $msg = "Subtotal inválido en un producto";
+            } else {
+                $msg = "Error al registrar: " . $error;
+            }
+
+            // REVERSAR TODO
+            oci_rollback($conn);
+
             echo "<script>
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Error al registrar: " . addslashes($error['message']) . "',
+                    text: " . json_encode($msg) . ",
                     confirmButtonColor: '#2c3e50'
                 });
             </script>";
@@ -418,6 +441,7 @@ function validarCosto(input) {
     
     if (!regex.test(valor) || parseFloat(valor) <= 0) {
         errorDiv.classList.add('show');
+        errorDiv.innerHTML = '<i class="fas fa-times-circle"></i> Solo números positivos (max: 99,999,999.99)';
         input.classList.add('input-error');
         input.classList.remove('input-success');
         calcularTotal();
@@ -580,6 +604,13 @@ function validarFormulario(event) {
 }
 
 // Inicializar eventos
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar validaciones
+    validarProveedor();
+    validarFecha();
+    calcularTotal();
+});
+
 document.addEventListener('change', function(e) {
     if (e.target.matches('input[name="cantidades[]"], input[name="costos[]"]')) {
         calcularTotal();

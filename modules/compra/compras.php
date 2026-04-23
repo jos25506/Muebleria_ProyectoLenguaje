@@ -11,8 +11,12 @@ if (!isset($_SESSION['usuario_id'])) {
 $db = new Database();
 $conn = $db->getConnection();
 
-// Consultar compras
-$query = "SELECT c.*, p.NOMBRE as PROVEEDOR, u.NOMBRE as USUARIO
+// ============================================
+// CONSULTA CORREGIDA: FECHA FORMATEADA DESDE ORACLE
+// ============================================
+$query = "SELECT c.ID_COMPRA, c.TOTAL, 
+                 TO_CHAR(c.FECHA, 'DD/MM/YYYY') as FECHA_FORMATEADA,
+                 p.NOMBRE as PROVEEDOR, u.NOMBRE as USUARIO
           FROM MUEBLERIA.COMPRA c
           JOIN MUEBLERIA.PROVEEDOR p ON c.ID_PROVEEDOR = p.ID_PROVEEDOR
           JOIN MUEBLERIA.USUARIO u ON c.ID_USUARIO = u.ID_USUARIO
@@ -69,7 +73,8 @@ oci_execute($stmt);
                     ?>
                     <tr>
                         <td><?php echo $row['ID_COMPRA']; ?></td>
-                        <td><?php echo date('d/m/Y', strtotime($row['FECHA'])); ?></td>
+                        <!-- FECHA YA FORMATEADA POR ORACLE -->
+                        <td><?php echo $row['FECHA_FORMATEADA']; ?></td>
                         <td><?php echo htmlspecialchars($row['PROVEEDOR']); ?></td>
                         <td>₡<?php echo number_format($row['TOTAL'], 0, ',', '.'); ?></td>
                         <td><?php echo htmlspecialchars($row['USUARIO']); ?></td>
