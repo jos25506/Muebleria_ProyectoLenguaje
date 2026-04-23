@@ -11,23 +11,22 @@ if (!isset($_SESSION['usuario_id'])) {
 $db = new Database();
 $conn = $db->getConnection();
 
-// Consultar pagos con información del pedido y cliente
-$query = "SELECT p.*, pe.ID_PEDIDO, pe.TOTAL as TOTAL_PEDIDO, 
-                 c.NOMBRE as CLIENTE
-          FROM MUEBLERIA.PAGO p
-          JOIN MUEBLERIA.PEDIDO pe ON p.ID_PEDIDO = pe.ID_PEDIDO
-          JOIN MUEBLERIA.CLIENTE c ON pe.ID_CLIENTE = c.ID_CLIENTE
-          ORDER BY p.FECHA DESC";
+// Consultar compras
+$query = "SELECT c.*, p.NOMBRE as PROVEEDOR, u.NOMBRE as USUARIO
+          FROM MUEBLERIA.COMPRA c
+          JOIN MUEBLERIA.PROVEEDOR p ON c.ID_PROVEEDOR = p.ID_PROVEEDOR
+          JOIN MUEBLERIA.USUARIO u ON c.ID_USUARIO = u.ID_USUARIO
+          ORDER BY c.FECHA DESC";
 $stmt = oci_parse($conn, $query);
 oci_execute($stmt);
 ?>
 
 <style>
-#tablaPagos tbody td {
+#tablaCompras tbody td {
     color: #333333 !important;
     background-color: #ffffff !important;
 }
-#tablaPagos thead th {
+#tablaCompras thead th {
     background-color: #2c3e50 !important;
     color: white !important;
 }
@@ -35,62 +34,52 @@ oci_execute($stmt);
 
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-credit-card"></i> Lista de Pagos
-        <a href="nuevo.php" class="btn btn-primary btn-sm float-end">
-            <i class="fas fa-plus"></i> Nuevo Pago
+        <i class="fas fa-shopping-cart"></i> Lista de Compras
+        <a href="nueva.php" class="btn btn-primary btn-sm float-end">
+            <i class="fas fa-plus"></i> Nueva Compra
         </a>
     </div>
     <div class="card-body">
         
         <div class="row mb-3">
             <div class="col-md-6">
-                <input type="text" class="form-control" id="buscarPago" 
-                       placeholder="Buscar por cliente o referencia..." 
+                <input type="text" class="form-control" id="buscarCompra" 
+                       placeholder="Buscar por proveedor..." 
                        onkeyup="buscarTabla()">
             </div>
         </div>
         
         <div class="table-responsive">
-            <table class="table table-striped table-hover" id="tablaPagos">
+            <table class="table table-striped table-hover" id="tablaCompras">
                 <thead class="table-dark">
                     <tr>
                         <th>ID</th>
-                        <th>Pedido</th>
-                        <th>Cliente</th>
-                        <th>Monto</th>
-                        <th>Método</th>
-                        <th>Referencia</th>
                         <th>Fecha</th>
+                        <th>Proveedor</th>
+                        <th>Total</th>
+                        <th>Usuario</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php 
-                    $hay_pagos = false;
+                    $hay_compras = false;
                     while ($row = oci_fetch_assoc($stmt)): 
-                        $hay_pagos = true;
+                        $hay_compras = true;
                     ?>
                     <tr>
-                        <td><?php echo $row['ID_PAGO']; ?></td>
-                        <td><?php echo $row['ID_PEDIDO']; ?></td>
-                        <td><?php echo htmlspecialchars($row['CLIENTE']); ?></td>
-                        <td>₡<?php echo number_format($row['MONTO'], 0, ',', '.'); ?></td>
-                        <td>
-                            <?php 
-                            $badge_class = '';
-                            if ($row['METODO'] == 'TARJETA') $badge_class = 'bg-info';
-                            elseif ($row['METODO'] == 'EFECTIVO') $badge_class = 'bg-success';
-                            else $badge_class = 'bg-warning';
-                            ?>
-                            <span class="badge <?php echo $badge_class; ?>">
-                                <?php echo $row['METODO']; ?>
-                            </span>
-                        </td>
-                        <td><?php echo htmlspecialchars($row['REFERENCIA']); ?></td>
+                        <td><?php echo $row['ID_COMPRA']; ?></td>
                         <td><?php echo date('d/m/Y', strtotime($row['FECHA'])); ?></td>
+                        <td><?php echo htmlspecialchars($row['PROVEEDOR']); ?></td>
+                        <td>₡<?php echo number_format($row['TOTAL'], 0, ',', '.'); ?></td>
+                        <td><?php echo htmlspecialchars($row['USUARIO']); ?></td>
                         <td>
+                            <a href="detalle.php?id=<?php echo $row['ID_COMPRA']; ?>" 
+                               class="btn btn-info btn-sm">
+                                <i class="fas fa-eye"></i> Ver
+                            </a>
                             <a href="javascript:void(0);" 
-                               onclick="confirmarEliminacion(<?php echo $row['ID_PAGO']; ?>)" 
+                               onclick="confirmarEliminacion(<?php echo $row['ID_COMPRA']; ?>)" 
                                class="btn btn-danger btn-sm">
                                 <i class="fas fa-trash"></i>
                             </a>
@@ -99,13 +88,13 @@ oci_execute($stmt);
                     <?php 
                     endwhile; 
                     
-                    if (!$hay_pagos):
+                    if (!$hay_compras):
                     ?>
                     <tr>
-                        <td colspan="8" class="text-center">
+                        <td colspan="6" class="text-center">
                             <div class="alert alert-info mb-0">
-                                No hay pagos registrados. 
-                                <a href="nuevo.php">Registrar el primer pago</a>
+                                No hay compras registradas. 
+                                <a href="nueva.php">Registrar la primera compra</a>
                             </div>
                         </td>
                     </tr>
@@ -118,17 +107,16 @@ oci_execute($stmt);
 
 <script>
 function buscarTabla() {
-    var input, filter, table, tr, td, i, txtValue;
-    input = document.getElementById("buscarPago");
+    var input, filter, table, tr, td, i;
+    input = document.getElementById("buscarCompra");
     filter = input.value.toUpperCase();
-    table = document.getElementById("tablaPagos");
+    table = document.getElementById("tablaCompras");
     tr = table.getElementsByTagName("tr");
     
     for (i = 0; i < tr.length; i++) {
         td = tr[i].getElementsByTagName("td")[2];
         if (td) {
-            txtValue = td.textContent || td.innerText;
-            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+            if (td.textContent.toUpperCase().indexOf(filter) > -1) {
                 tr[i].style.display = "";
             } else {
                 tr[i].style.display = "none";
@@ -140,7 +128,7 @@ function buscarTabla() {
 function confirmarEliminacion(id) {
     Swal.fire({
         title: '¿Estás seguro?',
-        text: '¿Desea eliminar este pago? Esta acción no se puede deshacer.',
+        text: '¿Desea eliminar esta compra? También se eliminarán sus detalles.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#e74c3c',
