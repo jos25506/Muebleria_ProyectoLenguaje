@@ -48,30 +48,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         oci_bind_by_name($stmt, ':telefono', $telefono);
         oci_bind_by_name($stmt, ':correo', $correo);
         oci_bind_by_name($stmt, ':direccion', $direccion);
-        
-        if (oci_execute($stmt)) {
-            echo "<script>
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Cliente guardado!',
-                    text: 'El cliente \"$nombre\" ha sido creado exitosamente',
-                    confirmButtonColor: '#2c3e50',
-                    confirmButtonText: 'Ver clientes'
-                }).then((result) => {
-                    window.location.href = 'clientes.php';
-                });
-            </script>";
-        } else {
-            $error = oci_error($stmt);
-            echo "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error al guardar: " . addslashes($error['message']) . "',
-                    confirmButtonColor: '#2c3e50'
-                });
-            </script>";
-        }
+        try {
+
+    if (!@oci_execute($stmt)) {
+        $e = oci_error($stmt);
+        throw new Exception($e['message']);
+    }
+
+    echo "<script>
+        Swal.fire({
+            icon: 'success',
+            title: '¡Cliente guardado!',
+            text: 'El cliente \"$nombre\" ha sido creado exitosamente',
+            confirmButtonColor: '#2c3e50'
+        }).then(() => {
+            window.location.href = 'clientes.php';
+        });
+    </script>";
+
+} catch (Exception $e) {
+
+    $error = $e->getMessage();
+
+    if (strpos($error, 'ORA-20101') !== false) {
+        $msg = "Nombre demasiado corto";
+    } elseif (strpos($error, 'ORA-20102') !== false) {
+        $msg = "Dirección demasiado corta";
+    } else {
+        $msg = "Error al guardar: " . $error;
+    }
+
+    echo "<script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: '$msg',
+            confirmButtonColor: '#2c3e50'
+        });
+    </script>";
+}
     } else {
         // Mostrar errores de validación
         $mensaje_error = implode("\\n", $errores);
