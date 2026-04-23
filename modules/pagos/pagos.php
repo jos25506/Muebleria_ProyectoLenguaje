@@ -11,8 +11,12 @@ if (!isset($_SESSION['usuario_id'])) {
 $db = new Database();
 $conn = $db->getConnection();
 
-// Consultar pagos con información del pedido y cliente
-$query = "SELECT p.*, pe.ID_PEDIDO, pe.TOTAL as TOTAL_PEDIDO, 
+// ============================================
+// CONSULTA CORREGIDA: FECHA FORMATEADA DESDE ORACLE
+// ============================================
+$query = "SELECT p.ID_PAGO, p.METODO, p.MONTO, p.REFERENCIA, 
+                 TO_CHAR(p.FECHA, 'DD/MM/YYYY') as FECHA_FORMATEADA,
+                 pe.ID_PEDIDO, pe.TOTAL as TOTAL_PEDIDO, 
                  c.NOMBRE as CLIENTE
           FROM MUEBLERIA.PAGO p
           JOIN MUEBLERIA.PEDIDO pe ON p.ID_PEDIDO = pe.ID_PEDIDO
@@ -87,7 +91,8 @@ oci_execute($stmt);
                             </span>
                         </td>
                         <td><?php echo htmlspecialchars($row['REFERENCIA']); ?></td>
-                        <td><?php echo date('d/m/Y', strtotime($row['FECHA'])); ?></td>
+                         <!-- FECHA YA FORMATEADA POR ORACLE -->
+                        <td><?php echo $row['FECHA_FORMATEADA']; ?></td>
                         <td>
                             <a href="javascript:void(0);" 
                                onclick="confirmarEliminacion(<?php echo $row['ID_PAGO']; ?>)" 
